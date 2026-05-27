@@ -46,9 +46,13 @@ env:
   CCACHE_COMPILERCHECK: "%compiler% -v"
   CCACHE_MAXSIZE: 5G
 
+permissions:
+  contents: write
+  actions: write
+  
 jobs:
   custom-build:
-    name: "Custom: ${{ github.event.inputs.variant }}-${{ github.event.inputs.root_type }}-${{ github.event.inputs.hz_id }}Hz"
+    name: "Custom: ${{ inputs.variant }}-${{ inputs.root_type }}-${{ inputs.hz_id }}Hz"
     runs-on: ubuntu-24.04
     steps:
       - name: Free Disk Space & Setup Swap
@@ -65,9 +69,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ github.workspace }}/.ccache
-          key: custom-ccache-${{ github.event.inputs.variant }}-${{ github.event.inputs.root_type }}-${{ github.event.inputs.hz_id }}-${{ github.sha }}
+          key: custom-ccache-${{ inputs.variant }}-${{ inputs.root_type }}-${{ inputs.hz_id }}-${{ github.sha }}
           restore-keys: |
-            custom-ccache-${{ github.event.inputs.variant }}-${{ github.event.inputs.root_type }}-${{ github.event.inputs.hz_id }}-
+            custom-ccache-${{ inputs.variant }}-${{ inputs.root_type }}-${{ inputs.hz_id }}-
 
       - name: Setup Build Environment
         run: |
@@ -93,19 +97,19 @@ jobs:
           export CCACHE_EXEC=/usr/bin/ccache
           
           LTO_MODE="full"
-          if [ "${{ github.event.inputs.kpm }}" = "on" ]; then
+          if [ "${{ inputs.kpm }}" = "on" ]; then
             LTO_MODE="thin"
           fi
           
           ./build.sh \
-            hz=${{ github.event.inputs.hz_id }} \
-            variant=${{ github.event.inputs.variant }} \
-            root=${{ github.event.inputs.root_type }} \
-            kpm=${{ github.event.inputs.kpm }} \
-            kpm_superkey=${{ github.event.inputs.kpm == 'on' && secrets.KPM_SUPERKEY || '' }} \
-            kpm_patch=${{ github.event.inputs.kpm == 'on' && github.event.inputs.root_type == 'resukisu' && 'off' || 'on' }} \
-            hardened=${{ github.event.inputs.hardened }} \
-            bypasscharging=${{ github.event.inputs.bypasscharging }} \
+            hz=${{ inputs.hz_id }} \
+            variant=${{ inputs.variant }} \
+            root=${{ inputs.root_type }} \
+            kpm=${{ inputs.kpm }} \
+            kpm_superkey=${{ inputs.kpm == 'on' && secrets.KPM_SUPERKEY || '' }} \
+            kpm_patch=${{ inputs.kpm == 'on' && inputs.root_type == 'resukisu' && 'off' || 'on' }} \
+            hardened=${{ inputs.hardened }} \
+            bypasscharging=${{ inputs.bypasscharging }} \
             lto=$LTO_MODE
 
       - name: Prepare assets
@@ -119,15 +123,15 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: custom-${{ github.run_number }}-${{ github.sha }}
-          name: Custom Build ${{ github.event.inputs.variant }}-${{ github.event.inputs.hz_id }}Hz
+          name: Custom Build ${{ inputs.variant }}-${{ inputs.hz_id }}Hz
           body: |
             Manual Compilation Success!
-            • Variant: ${{ github.event.inputs.variant }}
-            • Root Type: ${{ github.event.inputs.root_type }}
-            • Configuration: ${{ github.event.inputs.hz_id }} Hz
-            • KPM: ${{ github.event.inputs.kpm }}
-            • Hardened: ${{ github.event.inputs.hardened }}
-            • Bypass Charging: ${{ github.event.inputs.bypasscharging }}
+            • Variant: ${{ inputs.variant }}
+            • Root Type: ${{ inputs.root_type }}
+            • Configuration: ${{ inputs.hz_id }} Hz
+            • KPM: ${{ inputs.kpm }}
+            • Hardened: ${{ inputs.hardened }}
+            • Bypass Charging: ${{ inputs.bypasscharging }}
           files: release_assets/*
 
       - name: Send Notification to Telegram
@@ -140,11 +144,12 @@ jobs:
             *🛠️ Custom Kernel Build Finished!*
             
             *📋 Selected Specifications:*
-            • Variant Base: `${{ github.event.inputs.variant }}`
-            • Root Method: `${{ github.event.inputs.root_type }}`
-            • Configuration: `${{ github.event.inputs.hz_id }} Hz`
-            • Flags: `KPM: ${{ github.event.inputs.kpm }} | Hardened: ${{ github.event.inputs.hardened }} | MCA Bypass: ${{ github.event.inputs.bypasscharging }}`
+            • Variant Base: `${{ inputs.variant }}`
+            • Root Method: `${{ inputs.root_type }}`
+            • Configuration: `${{ inputs.hz_id }} Hz`
+            • Flags: `KPM: ${{ inputs.kpm }} | Hardened: ${{ inputs.hardened }} | MCA Bypass: ${{ inputs.bypasscharging }}`
             
             *🔗 Download Link:*
             Your custom flashable kernel archive has been successfully pushed:
             👉 [Download Custom Kernel](${{ steps.create_custom_release.outputs.html_url }})
+            
