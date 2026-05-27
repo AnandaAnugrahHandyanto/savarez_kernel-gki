@@ -5,13 +5,15 @@ on:
     branches: [main]
   workflow_dispatch:
   schedule:
-    - cron: '0 17 * * *'  # 00:00 WIB (UTC+7)
+    - cron: '0 17 * * *'
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  CCACHE_DIR: ${{ github.workspace }}/.ccache
+  CCACHE_COMPILERCHECK: "%compiler% -v"
+  CCACHE_MAXSIZE: 5G
 
 jobs:
-  # JOB 1: Build varian Stock, KernelSU Next, Sukisu, Resukisu, Mambosu (Total: 208 Jobs)
   build-kernel:
     name: "${{ matrix.variant == 'stock' && format('{0}-{1}', matrix.variant, matrix.hz.name) || format('{0}-{1}-{2}', matrix.variant, matrix.root, matrix.hz.name) }}${{ matrix.kpm == 'on' && '-kpm' || '' }}${{ matrix.hardened == 'on' && '-hardened' || '' }}${{ matrix.bypasscharging == 'on' && '-bypasscharging' || '' }}"
     runs-on: ubuntu-24.04
@@ -65,25 +67,30 @@ jobs:
       fail-fast: false
 
     steps:
-      - name: Create Swap
+      - name: Free Disk Space & Setup Swap
         run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell /usr/share/swift
           SWAPFILE="/mnt/build_swapfile"
-          while true; do
-            if sudo fallocate -l 10G $SWAPFILE || sudo dd if=/dev/zero of=$SWAPFILE bs=1M count=10240 status=progress; then
-              break
-            else
-              sleep 5
-            fi
-          done
+          sudo fallocate -l 8G $SWAPFILE || sudo dd if=/dev/zero of=$SWAPFILE bs=1M count=8192 status=progress
           sudo chmod 600 $SWAPFILE && sudo mkswap $SWAPFILE && sudo swapon $SWAPFILE
 
       - uses: actions/checkout@v4
         with: { path: gki-clo }
 
+      - name: Setup Cache for ccache
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.ccache
+          key: kernel-ccache-${{ matrix.variant }}-${{ matrix.root }}-${{ matrix.hz.name }}-${{ github.sha }}
+          restore-keys: |
+            kernel-ccache-${{ matrix.variant }}-${{ matrix.root }}-${{ matrix.hz.name }}-
+            kernel-ccache-
+
       - name: Setup Build Environment
         run: |
           sudo apt-get update
           sudo apt-get install -y bc bison build-essential ccache curl flex g++-multilib gcc-multilib git gnupg gperf imagemagick lib32ncurses-dev lib32readline-dev lib32z1-dev libncurses-dev libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop pngcrush rsync schedtool squashfs-tools xsltproc zip zlib1g-dev python3 clang lld llvm jq
+          ccache -M 5G
 
       - name: Download Clang Toolchain
         run: |
@@ -99,6 +106,8 @@ jobs:
         run: |
           cd gki-clo
           chmod +x build.sh
+          export USE_CCACHE=1
+          export CCACHE_EXEC=/usr/bin/ccache
           ./build.sh \
             hz=${{ matrix.hz.id }} \
             variant=${{ matrix.variant }} \
@@ -117,7 +126,6 @@ jobs:
           path: gki-clo/savarez-Release
           retention-days: 7
 
-  # JOB 2: Build khusus APatch dan FolkPatch (Total: 64 Jobs, menghindari limit matrix 256 job github)
   build-kernel-patcher:
     name: "${{ format('{0}-{1}-{2}-kpm', matrix.variant, matrix.root, matrix.hz.name) }}${{ matrix.hardened == 'on' && '-hardened' || '' }}${{ matrix.bypasscharging == 'on' && '-bypasscharging' || '' }}"
     runs-on: ubuntu-24.04
@@ -130,31 +138,36 @@ jobs:
           - { id: 1000, name: ultra-performance }
         variant: [root, susfs]
         root: [apatch, folkpatch]
-        kpm: [on] # APatch/Folkpatch selalu butuh KPM
+        kpm: [on]
         hardened: [off, on]
         bypasscharging: [off, on]
       fail-fast: false
 
     steps:
-      - name: Create Swap
+      - name: Free Disk Space & Setup Swap
         run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell /usr/share/swift
           SWAPFILE="/mnt/build_swapfile"
-          while true; do
-            if sudo fallocate -l 10G $SWAPFILE || sudo dd if=/dev/zero of=$SWAPFILE bs=1M count=10240 status=progress; then
-              break
-            else
-              sleep 5
-            fi
-          done
+          sudo fallocate -l 8G $SWAPFILE || sudo dd if=/dev/zero of=$SWAPFILE bs=1M count=8192 status=progress
           sudo chmod 600 $SWAPFILE && sudo mkswap $SWAPFILE && sudo swapon $SWAPFILE
 
       - uses: actions/checkout@v4
         with: { path: gki-clo }
 
+      - name: Setup Cache for ccache
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.ccache
+          key: patcher-ccache-${{ matrix.variant }}-${{ matrix.root }}-${{ matrix.hz.name }}-${{ github.sha }}
+          restore-keys: |
+            patcher-ccache-${{ matrix.variant }}-${{ matrix.root }}-${{ matrix.hz.name }}-
+            patcher-ccache-
+
       - name: Setup Build Environment
         run: |
           sudo apt-get update
           sudo apt-get install -y bc bison build-essential ccache curl flex g++-multilib gcc-multilib git gnupg gperf imagemagick lib32ncurses-dev lib32readline-dev lib32z1-dev libncurses-dev libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop pngcrush rsync schedtool squashfs-tools xsltproc zip zlib1g-dev python3 clang lld llvm jq
+          ccache -M 5G
 
       - name: Download Clang Toolchain
         run: |
@@ -170,6 +183,8 @@ jobs:
         run: |
           cd gki-clo
           chmod +x build.sh
+          export USE_CCACHE=1
+          export CCACHE_EXEC=/usr/bin/ccache
           ./build.sh \
             hz=${{ matrix.hz.id }} \
             variant=${{ matrix.variant }} \
@@ -323,9 +338,28 @@ jobs:
           "
 
       - name: Create Release
+        id: create_release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}-${{ github.sha }}
           name: Build ${{ github.sha }}
           body_path: release_body.md
           files: release_assets/*
+
+      - name: Send Notification to Telegram
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_TO }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          format: markdown
+          message: |
+            *🚀 Savarez Kernel Build Success!*
+            
+            *📌 Build Info:*
+            • Run Number: `#${{ github.run_number }}`
+            • Triggered By: `${{ github.actor }}`
+            • Base Commit: `${{ github.sha }}`
+            
+            *📦 Download Link:*
+            The complete release matrix and flashable `.zip` kernel files are now available on the official release page:
+            👉 [Get Kernel Files Here](${{ steps.create_release.outputs.html_url }})

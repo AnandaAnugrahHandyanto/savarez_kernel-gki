@@ -1,175 +1,79 @@
-name: Build Kernel CI (Custom Variant)
+name: Build Custom Kernel (Manual)
 
 on:
   workflow_dispatch:
     inputs:
-      hz:
-        description: 'Refresh Rate (HZ)'
+      hz_id:
+        description: 'Select Hz Configuration'
         required: true
+        default: '250'
         type: choice
-        options:
-          - powersave
-          - balance
-          - performance
-          - ultra-performance
-        default: ultra-performance
+        options: ['100', '250', '500', '1000']
       variant:
-        description: 'Build Variant'
+        description: 'Select System Variant'
         required: true
+        default: 'root'
         type: choice
-        options:
-          - stock
-          - root
-          - susfs
-        default: susfs
-      root:
-        description: 'Root Method'
+        options: ['stock', 'root', 'susfs']
+      root_type:
+        description: 'Select Root Solution (Ignore if Stock selected)'
         required: true
+        default: 'ksu'
         type: choice
-        options:
-          - none
-          - ksu
-          - ksu-next
-          - sukisu
-          - resukisu
-          - mambosu
-          - apatch
-          - folkpatch
-        default: resukisu
+        options: ['none', 'ksu', 'ksu-next', 'sukisu', 'resukisu', 'mambosu', 'apatch', 'folkpatch']
       kpm:
-        description: 'Kernel Patch Module (KPM)'
+        description: 'Enable KPM (on/off)'
         required: true
-        type: choice
-        options:
-          - 'off'
-          - 'on'
         default: 'off'
+        type: choice
+        options: ['off', 'on']
       hardened:
-        description: 'Hardened Kernel'
+        description: 'Enable Hardened (off/on)'
         required: true
-        type: choice
-        options:
-          - 'off'
-          - 'on'
         default: 'off'
+        type: choice
+        options: ['off', 'on']
       bypasscharging:
-        description: "Bypass Charging (MCA Override)"
+        description: 'Enable Bypass Charging (off/on)'
         required: true
+        default: 'off'
         type: choice
-        options:
-          - "off"
-          - "on"
-        default: "on"
-      htsr:
-        description: "HTSR 240Hz Touch Sampling"
-        required: true
-        type: choice
-        options:
-          - "off"
-          - "on"
-        default: "on"
-      wifi_exploit:
-        description: "WiFi Performance Exploits (WLM, Coex, BBR)"
-        required: true
-        type: choice
-        options:
-          - "off"
-          - "on"
-        default: "on"
-      kgsl_exploit:
-        description: "KGSL GPU Bypass (LM_LIMIT, DCVS)"
-        required: true
-        type: choice
-        options:
-          - "off"
-          - "on"
-        default: "on"
-      data_exploit:
-        description: "Mobile Data Exploits (DFC, Powersave)"
-        required: true
-        type: choice
-        options:
-          - "off"
-          - "on"
-        default: "on"
+        options: ['off', 'on']
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  CCACHE_DIR: ${{ github.workspace }}/.ccache
+  CCACHE_COMPILERCHECK: "%compiler% -v"
+  CCACHE_MAXSIZE: 5G
 
 jobs:
-  build-custom-kernel:
-    name: "Custom Build"
+  custom-build:
+    name: "Custom: ${{ github.event.inputs.variant }}-${{ github.event.inputs.root_type }}-${{ github.event.inputs.hz_id }}Hz"
     runs-on: ubuntu-24.04
-
     steps:
-      - name: Parse Inputs
-        id: setup_vars
-        env:
-          INPUT_HZ: ${{ inputs.hz }}
-          INPUT_VARIANT: ${{ inputs.variant }}
-          INPUT_ROOT: ${{ inputs.root }}
-          INPUT_KPM: ${{ inputs.kpm }}
-          INPUT_HARDENED: ${{ inputs.hardened }}
-          INPUT_BYPASS: ${{ inputs.bypasscharging }}
-          INPUT_HTSR: ${{ inputs.htsr }}
-          INPUT_WIFI: ${{ inputs.wifi_exploit }}
-          INPUT_KGSL: ${{ inputs.kgsl_exploit }}
-          INPUT_DATA: ${{ inputs.data_exploit }}
+      - name: Free Disk Space & Setup Swap
         run: |
-          if [ "$INPUT_HZ" == "powersave" ]; then HZ_ID=100
-          elif [ "$INPUT_HZ" == "balance" ]; then HZ_ID=250
-          elif [ "$INPUT_HZ" == "performance" ]; then HZ_ID=500
-          elif [ "$INPUT_HZ" == "ultra-performance" ]; then HZ_ID=1000
-          fi
-          echo "HZ_ID=$HZ_ID" >> $GITHUB_ENV
-
-          ACTUAL_ROOT="$INPUT_ROOT"
-          if [ "$INPUT_VARIANT" == "stock" ]; then
-            ACTUAL_ROOT="none"
-          fi
-          echo "ACTUAL_ROOT=$ACTUAL_ROOT" >> $GITHUB_ENV
-
-          if [ "$INPUT_VARIANT" == "stock" ]; then
-            BUILD_NAME="${INPUT_VARIANT}-${INPUT_HZ}"
-          else
-            BUILD_NAME="${INPUT_VARIANT}-${ACTUAL_ROOT}-${INPUT_HZ}"
-          fi
-          
-          if [ "$INPUT_KPM" == "on" ] || [ "$ACTUAL_ROOT" == "apatch" ] || [ "$ACTUAL_ROOT" == "folkpatch" ]; then 
-            BUILD_NAME="${BUILD_NAME}-kpm"
-          fi
-          if [ "$INPUT_HARDENED" == "on" ]; then BUILD_NAME="${BUILD_NAME}-hardened"; fi
-          if [ "$INPUT_BYPASS" == "on" ]; then BUILD_NAME="${BUILD_NAME}-bypasscharging"; fi
-          if [ "$INPUT_HTSR" == "off" ]; then BUILD_NAME="${BUILD_NAME}-nohtsr"; fi
-          if [ "$INPUT_WIFI" == "off" ]; then BUILD_NAME="${BUILD_NAME}-nowifi"; fi
-          if [ "$INPUT_KGSL" == "off" ]; then BUILD_NAME="${BUILD_NAME}-nokgsl"; fi
-          if [ "$INPUT_DATA" == "off" ]; then BUILD_NAME="${BUILD_NAME}-nodata"; fi
-          
-          echo "BUILD_NAME=$BUILD_NAME" >> $GITHUB_ENV
-          
-      - name: Rename Job
-        run: echo "Mengubah nama proses untuk Build $BUILD_NAME"
-
-      - name: Create Swap
-        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell /usr/share/swift
           SWAPFILE="/mnt/build_swapfile"
-          while true; do
-            if sudo fallocate -l 10G $SWAPFILE || sudo dd if=/dev/zero of=$SWAPFILE bs=1M count=10240 status=progress; then
-              break
-            else
-              sleep 5
-            fi
-          done
+          sudo fallocate -l 8G $SWAPFILE || sudo dd if=/dev/zero of=$SWAPFILE bs=1M count=8192 status=progress
           sudo chmod 600 $SWAPFILE && sudo mkswap $SWAPFILE && sudo swapon $SWAPFILE
 
       - uses: actions/checkout@v4
+        with: { path: gki-clo }
+
+      - name: Setup Cache for ccache
+        uses: actions/cache@v4
         with:
-          path: gki-clo
+          path: ${{ github.workspace }}/.ccache
+          key: custom-ccache-${{ github.event.inputs.variant }}-${{ github.event.inputs.root_type }}-${{ github.event.inputs.hz_id }}-${{ github.sha }}
+          restore-keys: |
+            custom-ccache-${{ github.event.inputs.variant }}-${{ github.event.inputs.root_type }}-${{ github.event.inputs.hz_id }}-
 
       - name: Setup Build Environment
         run: |
           sudo apt-get update
           sudo apt-get install -y bc bison build-essential ccache curl flex g++-multilib gcc-multilib git gnupg gperf imagemagick lib32ncurses-dev lib32readline-dev lib32z1-dev libncurses-dev libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop pngcrush rsync schedtool squashfs-tools xsltproc zip zlib1g-dev python3 clang lld llvm jq
+          ccache -M 5G
 
       - name: Download Clang Toolchain
         run: |
@@ -182,97 +86,65 @@ jobs:
           [ ! -d "anykernel" ] && git clone https://github.com/osm0sis/AnyKernel3.git anykernel || true
 
       - name: Build Kernel
-        env:
-          KPM_SUPERKEY_SECRET: ${{ secrets.KPM_SUPERKEY }}
-          INPUT_VARIANT: ${{ inputs.variant }}
-          INPUT_KPM: ${{ inputs.kpm }}
-          INPUT_HARDENED: ${{ inputs.hardened }}
-          INPUT_HTSR: ${{ inputs.htsr }}
-          INPUT_WIFI: ${{ inputs.wifi_exploit }}
-          INPUT_KGSL: ${{ inputs.kgsl_exploit }}
-          INPUT_DATA: ${{ inputs.data_exploit }}
-          INPUT_BYPASS: ${{ inputs.bypasscharging }}
         run: |
           cd gki-clo
           chmod +x build.sh
+          export USE_CCACHE=1
+          export CCACHE_EXEC=/usr/bin/ccache
           
-          KPM_PATCH="on"
-          if [ "$INPUT_KPM" == "on" ] && [ "$ACTUAL_ROOT" == "resukisu" ]; then
-            KPM_PATCH="off"
+          LTO_MODE="full"
+          if [ "${{ github.event.inputs.kpm }}" = "on" ]; then
+            LTO_MODE="thin"
           fi
           
-          LTO_VAL="full"
-          if [ "$INPUT_KPM" == "on" ] || [ "$ACTUAL_ROOT" == "apatch" ] || [ "$ACTUAL_ROOT" == "folkpatch" ]; then
-            LTO_VAL="thin"
-          fi
-          
-          KPM_KEY=""
-          if [ "$INPUT_KPM" == "on" ] || [ "$ACTUAL_ROOT" == "apatch" ] || [ "$ACTUAL_ROOT" == "folkpatch" ]; then
-            KPM_KEY="$KPM_SUPERKEY_SECRET"
-          fi
-
           ./build.sh \
-            hz="$HZ_ID" \
-            variant="$INPUT_VARIANT" \
-            root="$ACTUAL_ROOT" \
-            kpm="$INPUT_KPM" \
-            kpm_superkey="$KPM_KEY" \
-            kpm_patch="$KPM_PATCH" \
-            hardened="$INPUT_HARDENED" \
-            bypasscharging="$INPUT_BYPASS" \
-            htsr="$INPUT_HTSR" \
-            wifi_exploit="$INPUT_WIFI" \
-            kgsl_exploit="$INPUT_KGSL" \
-            data_exploit="$INPUT_DATA" \
-            lto="$LTO_VAL"
-
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: savarez-${{ env.BUILD_NAME }}
-          path: gki-clo/savarez-Release
-          retention-days: 7
-
-  release:
-    needs: build-custom-kernel
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: write
-    steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-          merge-multiple: true
+            hz=${{ github.event.inputs.hz_id }} \
+            variant=${{ github.event.inputs.variant }} \
+            root=${{ github.event.inputs.root_type }} \
+            kpm=${{ github.event.inputs.kpm }} \
+            kpm_superkey=${{ github.event.inputs.kpm == 'on' && secrets.KPM_SUPERKEY || '' }} \
+            kpm_patch=${{ github.event.inputs.kpm == 'on' && github.event.inputs.root_type == 'resukisu' && 'off' || 'on' }} \
+            hardened=${{ github.event.inputs.hardened }} \
+            bypasscharging=${{ github.event.inputs.bypasscharging }} \
+            lto=$LTO_MODE
 
       - name: Prepare assets
         run: |
           mkdir -p release_assets
-          find artifacts -type f -name "*.zip" -exec mv {} release_assets/ \; || true
-          find artifacts -type f -name "*.img" -exec mv {} release_assets/ \; || true
+          find gki-clo/savarez-Release -type f -name "*.zip" -exec mv {} release_assets/ \; || true
+          find gki-clo/savarez-Release -type f -name "*.img" -exec mv {} release_assets/ \; || true
 
       - name: Create Release
+        id: create_custom_release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: custom-build-${{ github.run_number }}-${{ github.sha }}
-          name: Custom Build ${{ github.sha }}
+          tag_name: custom-${{ github.run_number }}-${{ github.sha }}
+          name: Custom Build ${{ github.event.inputs.variant }}-${{ github.event.inputs.hz_id }}Hz
           body: |
-            Automated Custom Kernel Build.
-            Variant: **${{ inputs.variant }}**
-            HZ: **${{ inputs.hz }}**
-            Root: **${{ inputs.root }}**
-            KPM: **${{ inputs.kpm }}**
-            Hardened: **${{ inputs.hardened }}**
-            
-            ### Performance Mods
-            | Feature | Status |
-            |---------|--------|
-            | Bypass Charging | **${{ inputs.bypasscharging }}** |
-            | HTSR 240Hz Touch | **${{ inputs.htsr }}** |
-            | WiFi Exploits | **${{ inputs.wifi_exploit }}** |
-            | KGSL GPU Bypass | **${{ inputs.kgsl_exploit }}** |
-            | Data Exploits | **${{ inputs.data_exploit }}** |
-            
-            Commit: ${{ github.sha }}
-            Ref: ${{ github.ref }}
+            Manual Compilation Success!
+            • Variant: ${{ github.event.inputs.variant }}
+            • Root Type: ${{ github.event.inputs.root_type }}
+            • Configuration: ${{ github.event.inputs.hz_id }} Hz
+            • KPM: ${{ github.event.inputs.kpm }}
+            • Hardened: ${{ github.event.inputs.hardened }}
+            • Bypass Charging: ${{ github.event.inputs.bypasscharging }}
           files: release_assets/*
+
+      - name: Send Notification to Telegram
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_TO }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          format: markdown
+          message: |
+            *🛠️ Custom Kernel Build Finished!*
+            
+            *📋 Selected Specifications:*
+            • Variant Base: `${{ github.event.inputs.variant }}`
+            • Root Method: `${{ github.event.inputs.root_type }}`
+            • Configuration: `${{ github.event.inputs.hz_id }} Hz`
+            • Flags: `KPM: ${{ github.event.inputs.kpm }} | Hardened: ${{ github.event.inputs.hardened }} | MCA Bypass: ${{ github.event.inputs.bypasscharging }}`
+            
+            *🔗 Download Link:*
+            Your custom flashable kernel archive has been successfully pushed:
+            👉 [Download Custom Kernel](${{ steps.create_custom_release.outputs.html_url }})
