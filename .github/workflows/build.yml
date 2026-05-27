@@ -113,8 +113,8 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Kono-Ha-${{ matrix.variant == 'stock' && format('{0}-{1}', matrix.variant, matrix.hz.name) || format('{0}-{1}-{2}', matrix.variant, matrix.root, matrix.hz.name) }}${{ matrix.kpm == 'on' && '-kpm' || '' }}${{ matrix.hardened == 'on' && '-hardened' || '' }}${{ matrix.bypasscharging == 'on' && '-bypasscharging' || '' }}
-          path: gki-clo/Kono-Ha-Release
+          name: savarez-${{ matrix.variant == 'stock' && format('{0}-{1}', matrix.variant, matrix.hz.name) || format('{0}-{1}-{2}', matrix.variant, matrix.root, matrix.hz.name) }}${{ matrix.kpm == 'on' && '-kpm' || '' }}${{ matrix.hardened == 'on' && '-hardened' || '' }}${{ matrix.bypasscharging == 'on' && '-bypasscharging' || '' }}
+          path: gki-clo/savarez-Release
           retention-days: 7
 
   # JOB 2: Build khusus APatch dan FolkPatch (Total: 64 Jobs, menghindari limit matrix 256 job github)
@@ -184,8 +184,8 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Kono-Ha-${{ format('{0}-{1}-{2}-kpm', matrix.variant, matrix.root, matrix.hz.name) }}${{ matrix.hardened == 'on' && '-hardened' || '' }}${{ matrix.bypasscharging == 'on' && '-bypasscharging' || '' }}
-          path: gki-clo/Kono-Ha-Release
+          name: savarez-${{ format('{0}-{1}-{2}-kpm', matrix.variant, matrix.root, matrix.hz.name) }}${{ matrix.hardened == 'on' && '-hardened' || '' }}${{ matrix.bypasscharging == 'on' && '-bypasscharging' || '' }}
+          path: gki-clo/savarez-Release
           retention-days: 7
 
   release:

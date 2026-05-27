@@ -12,7 +12,7 @@ cleanup() {
 trap cleanup EXIT
 
 # ==========================================
-# Konoha Kernel Build Script
+# savarez Kernel Build Script
 # Usage: ./build.sh [key=value ...]
 #   hz=100|250|1000       Timer frequency (default: 250)
 #   hardened=on|off       CPU mitigations (default: off)
@@ -511,7 +511,7 @@ fi
 # Kernel Config
 # ==========================================
 mkdir -p "$OUT_DIR"
-make O="$OUT_DIR" CC=clang LLVM=1 LLVM_IAS=1 KCFLAGS="$KERNEL_KCFLAGS" LDFLAGS="$KERNEL_LDFLAGS" konoha_defconfig || exit 1
+make O="$OUT_DIR" CC=clang LLVM=1 LLVM_IAS=1 KCFLAGS="$KERNEL_KCFLAGS" LDFLAGS="$KERNEL_LDFLAGS" savarez_defconfig || exit 1
 
 # Root config
 case "$VARIANT" in
@@ -661,8 +661,8 @@ fi
 # ==========================================
 # Package
 # ==========================================
-find "$KERNEL_DIR" -maxdepth 1 -type f -name "Kono-Ha-*.zip" -exec rm -v {} \;
-rm -rf "$KERNEL_DIR/Kono-Ha-Release"
+find "$KERNEL_DIR" -maxdepth 1 -type f -name "savarez-*.zip" -exec rm -v {} \;
+rm -rf "$KERNEL_DIR/savarez-Release"
 
 TIME=$(date "+%Y%m%d-%H%M%S")
 TEMP_DIR="$KERNEL_DIR/anykernel_temp"
@@ -697,13 +697,13 @@ fi
 HZ_LABEL=""
 case "$HZ" in 100) HZ_LABEL="-powersave" ;; 500) HZ_LABEL="-performance" ;; 1000) HZ_LABEL="-ultra-performance" ;; *) HZ_LABEL="-balance" ;; esac
 
-ZIP_NAME="Kono-Ha-${VERSION}${ZIP_SUFFIX}${HZ_LABEL}-$TIME.zip"
+ZIP_NAME="savarez-${VERSION}${ZIP_SUFFIX}${HZ_LABEL}-$TIME.zip"
 cd "$TEMP_DIR" && zip -r9 "../$ZIP_NAME" * -x .git README.md *placeholder > /dev/null && cd ..
 rm -rf "$TEMP_DIR"
 
 # Copy to release dir for CI
-mkdir -p "$KERNEL_DIR/Kono-Ha-Release"
-cp "$KERNEL_DIR/$ZIP_NAME" "$KERNEL_DIR/Kono-Ha-Release/"
+mkdir -p "$KERNEL_DIR/savarez-Release"
+cp "$KERNEL_DIR/$ZIP_NAME" "$KERNEL_DIR/savarez-Release/"
 
 # GitHub Actions outputs
 if [ "$GITHUB_ACTIONS" == "true" ]; then

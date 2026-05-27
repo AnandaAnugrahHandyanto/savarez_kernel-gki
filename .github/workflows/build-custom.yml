@@ -229,8 +229,8 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Kono-Ha-${{ env.BUILD_NAME }}
-          path: gki-clo/Kono-Ha-Release
+          name: savarez-${{ env.BUILD_NAME }}
+          path: gki-clo/savarez-Release
           retention-days: 7
 
   release:
