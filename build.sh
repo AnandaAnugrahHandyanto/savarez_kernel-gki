@@ -6,7 +6,7 @@ set -e
 # ==========================================
 cleanup() {
     # Revert dynamic Baseband-guard modifications to keep git tree clean
-    git checkout security/Kconfig security/Makefile security/selinux/ 2>/dev/null || true
+    git checkout security/Kconfig security/Makefile security/selinux/ include/linux/sched.h 2>/dev/null || true
     rm -f security/baseband-guard
 }
 trap cleanup EXIT
@@ -23,6 +23,7 @@ trap cleanup EXIT
 #   kpm_patch=on|off      Inject kpimg with kptools (default: on; resukisu defaults off)
 #   lto=thin|full|none    LTO type (default: thin)
 #   autofdo=on|off        AutoFDO (default: on)
+#   droidspaces=on|off    Droidspaces support (default: off)
 # ==========================================
 
 VERSION="1.1"
@@ -44,6 +45,7 @@ for arg in "$@"; do
         wifi_exploit=*) WIFI_EXPLOIT="${arg#*=}" ;;
         kgsl_exploit=*) KGSL_EXPLOIT="${arg#*=}" ;;
         data_exploit=*) DATA_EXPLOIT="${arg#*=}" ;;
+        droidspaces=*) DROIDSPACES="${arg#*=}" ;;
     esac
 done
 
@@ -174,6 +176,17 @@ if [ -z "$BYPASSCHARGING" ]; then
     echo " 2) ON  (Override limits / Bypass charging)"
     read -p "Enter choice [1-2] (default 1): " _c
     [ "${_c:-1}" == "2" ] && BYPASSCHARGING="on" || BYPASSCHARGING="off"
+fi
+
+# 8. Droidspaces
+if [ -z "$DROIDSPACES" ]; then
+    echo "=========================================="
+    echo "            Droidspaces Support           "
+    echo "=========================================="
+    echo " 1) OFF (default)"
+    echo " 2) ON  (Add configs and kABI patches)"
+    read -p "Enter choice [1-2] (default 1): " _c
+    [ "${_c:-1}" == "2" ] && DROIDSPACES="on" || DROIDSPACES="off"
 fi
 
 # Set defaults for performance mods (all ON by default)
@@ -602,6 +615,11 @@ echo "$CURRENT_CMDLINE" | grep -q "panic_on_rcu_stall" || CMDLINE_APPEND="$CMDLI
 [ -n "$CMDLINE_APPEND" ] && \
     scripts/config --file "$OUT_DIR/.config" --set-str CONFIG_CMDLINE "$CURRENT_CMDLINE$CMDLINE_APPEND"
 
+# Setup Droidspaces Support
+if [ "$DROIDSPACES" == "on" ]; then
+    ./setup_droidspaces.sh "$OUT_DIR"
+fi
+
 # Single olddefconfig to finalize all changes
 make O="$OUT_DIR" CC=clang LLVM=1 LLVM_IAS=1 olddefconfig || exit 1
 
@@ -691,6 +709,7 @@ fi
 [ "$KPM" == "on" ] && ZIP_SUFFIX="${ZIP_SUFFIX}-kpm"
 [ "$HARDENED" == "on" ] && ZIP_SUFFIX="${ZIP_SUFFIX}-hardened"
 [ "$BYPASSCHARGING" == "on" ] && ZIP_SUFFIX="${ZIP_SUFFIX}-bypasscharging"
+[ "$DROIDSPACES" == "on" ] && ZIP_SUFFIX="${ZIP_SUFFIX}-droidspaces"
 [ "$HTSR" == "off" ] && ZIP_SUFFIX="${ZIP_SUFFIX}-nohtsr"
 [ "$WIFI_EXPLOIT" == "off" ] && ZIP_SUFFIX="${ZIP_SUFFIX}-nowifi"
 [ "$KGSL_EXPLOIT" == "off" ] && ZIP_SUFFIX="${ZIP_SUFFIX}-nokgsl"
