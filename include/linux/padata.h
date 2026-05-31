@@ -156,6 +156,7 @@ struct padata_mt_job {
  * @kobj: padata instance kernel object.
  * @lock: padata instance lock.
  * @flags: padata flags.
+ * @validate_cpumask: Internal cpumask used to validate @cpumask during hotplug.
  */
 struct padata_instance {
 	struct hlist_node		cpu_online_node;
@@ -167,6 +168,7 @@ struct padata_instance {
 	struct kobject                   kobj;
 	struct mutex			 lock;
 	u8				 flags;
+	cpumask_var_t			validate_cpumask;
 #define	PADATA_INIT	1
 #define	PADATA_RESET	2
 #define	PADATA_INVALID	4

@@ -4,41 +4,51 @@ on:
   workflow_dispatch:
     inputs:
       hz_id:
-        description: 'Select Hz Configuration'
+        description: "Select Hz Configuration"
         required: true
-        default: '250'
+        default: "250"
         type: choice
-        options: ['100', '250', '500', '1000']
+        options: ["100", "250", "500", "1000"]
       variant:
-        description: 'Select System Variant'
+        description: "Select System Variant"
         required: true
-        default: 'root'
+        default: "root"
         type: choice
-        options: ['stock', 'root', 'susfs']
+        options: ["stock", "root", "susfs"]
       root_type:
-        description: 'Select Root Solution (Ignore if Stock selected)'
+        description: "Select Root Solution (Ignore if Stock selected)"
         required: true
-        default: 'ksu'
+        default: "ksu"
         type: choice
-        options: ['none', 'ksu', 'ksu-next', 'sukisu', 'resukisu', 'mambosu', 'apatch', 'folkpatch']
+        options:
+          [
+            "none",
+            "ksu",
+            "ksu-next",
+            "sukisu",
+            "resukisu",
+            "mambosu",
+            "apatch",
+            "folkpatch",
+          ]
       kpm:
-        description: 'Enable KPM (on/off)'
+        description: "Enable KPM (on/off)"
         required: true
-        default: 'off'
+        default: "off"
         type: choice
-        options: ['off', 'on']
+        options: ["off", "on"]
       hardened:
-        description: 'Enable Hardened (off/on)'
+        description: "Enable Hardened (off/on)"
         required: true
-        default: 'off'
+        default: "off"
         type: choice
-        options: ['off', 'on']
+        options: ["off", "on"]
       bypasscharging:
-        description: 'Enable Bypass Charging (off/on)'
+        description: "Enable Bypass Charging (off/on)"
         required: true
-        default: 'off'
+        default: "off"
         type: choice
-        options: ['off', 'on']
+        options: ["off", "on"]
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -49,7 +59,7 @@ env:
 permissions:
   contents: write
   actions: write
-  
+
 jobs:
   custom-build:
     name: "Custom: ${{ inputs.variant }}-${{ inputs.root_type }}-${{ inputs.hz_id }}Hz"
@@ -95,12 +105,12 @@ jobs:
           chmod +x build.sh
           export USE_CCACHE=1
           export CCACHE_EXEC=/usr/bin/ccache
-          
+
           LTO_MODE="full"
           if [ "${{ inputs.kpm }}" = "on" ]; then
             LTO_MODE="thin"
           fi
-          
+
           ./build.sh \
             hz=${{ inputs.hz_id }} \
             variant=${{ inputs.variant }} \
@@ -142,14 +152,13 @@ jobs:
           format: markdown
           message: |
             *🛠️ Custom Kernel Build Finished!*
-            
+
             *📋 Selected Specifications:*
             • Variant Base: `${{ inputs.variant }}`
             • Root Method: `${{ inputs.root_type }}`
             • Configuration: `${{ inputs.hz_id }} Hz`
             • Flags: `KPM: ${{ inputs.kpm }} | Hardened: ${{ inputs.hardened }} | MCA Bypass: ${{ inputs.bypasscharging }}`
-            
+
             *🔗 Download Link:*
             Your custom flashable kernel archive has been successfully pushed:
             👉 [Download Custom Kernel](${{ steps.create_custom_release.outputs.html_url }})
-            
