@@ -7,7 +7,7 @@ on:
         description: "Custom Kernel Name (LOCALVERSION)"
         required: true
         type: string
-        default: "-Kono-Ha-Kernel"
+        default: "-savarez-nethunter-edition"
       spoof_uname:
         description: "Spoof Uname (SUSFS/Stock Naming)"
         required: true
@@ -17,7 +17,7 @@ on:
           - "on"
         default: "on"
       hz:
-        description: 'Refresh Rate (HZ)'
+        description: "Refresh Rate (HZ)"
         required: true
         type: choice
         options:
@@ -27,7 +27,7 @@ on:
           - ultra-performance
         default: ultra-performance
       variant:
-        description: 'Build Variant'
+        description: "Build Variant"
         required: true
         type: choice
         options:
@@ -36,7 +36,7 @@ on:
           - susfs
         default: susfs
       root:
-        description: 'Root Method'
+        description: "Root Method"
         required: true
         type: choice
         options:
@@ -51,21 +51,21 @@ on:
           - folkpatch
         default: resukisu
       kpm:
-        description: 'Kernel Patch Module (KPM)'
+        description: "Kernel Patch Module (KPM)"
         required: true
         type: choice
         options:
-          - 'off'
-          - 'on'
-        default: 'off'
+          - "off"
+          - "on"
+        default: "off"
       hardened:
-        description: 'Hardened Kernel'
+        description: "Hardened Kernel"
         required: true
         type: choice
         options:
-          - 'off'
-          - 'on'
-        default: 'off'
+          - "off"
+          - "on"
+        default: "off"
       bypasscharging:
         description: "Bypass Charging (MCA Override)"
         required: true
@@ -123,7 +123,6 @@ on:
           - "on"
         default: "off"
 
-
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
@@ -169,7 +168,7 @@ jobs:
           else
             BUILD_NAME="${INPUT_VARIANT}-${ACTUAL_ROOT}-${INPUT_HZ}"
           fi
-          
+
           if [ "$INPUT_KPM" == "on" ] || [ "$ACTUAL_ROOT" == "apatch" ] || [ "$ACTUAL_ROOT" == "folkpatch" ]; then 
             BUILD_NAME="${BUILD_NAME}-kpm"
           fi
@@ -181,9 +180,9 @@ jobs:
           if [ "$INPUT_KGSL" == "off" ]; then BUILD_NAME="${BUILD_NAME}-nokgsl"; fi
           if [ "$INPUT_DATA" == "off" ]; then BUILD_NAME="${BUILD_NAME}-nodata"; fi
           if [ "$INPUT_DEBUG" == "on" ]; then BUILD_NAME="${BUILD_NAME}-debug"; fi
-          
+
           echo "BUILD_NAME=$BUILD_NAME" >> $GITHUB_ENV
-          
+
       - name: Rename Job
         run: echo "Mengubah nama proses untuk Build $BUILD_NAME"
 
@@ -236,17 +235,17 @@ jobs:
         run: |
           cd gki-clo
           chmod +x build.sh
-          
+
           KPM_PATCH="on"
           if [ "$INPUT_KPM" == "on" ] && [ "$ACTUAL_ROOT" == "resukisu" ]; then
             KPM_PATCH="off"
           fi
-          
+
           LTO_VAL="full"
           if [ "$INPUT_KPM" == "on" ] || [ "$ACTUAL_ROOT" == "apatch" ] || [ "$ACTUAL_ROOT" == "folkpatch" ]; then
             LTO_VAL="thin"
           fi
-          
+
           KPM_KEY=""
           if [ "$INPUT_KPM" == "on" ] || [ "$ACTUAL_ROOT" == "apatch" ] || [ "$ACTUAL_ROOT" == "folkpatch" ]; then
             KPM_KEY="$KPM_SUPERKEY_SECRET"
@@ -274,8 +273,8 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Kono-Ha-${{ env.BUILD_NAME }}
-          path: gki-clo/Kono-Ha-Release
+          name: savarez-${{ env.BUILD_NAME }}
+          path: gki-clo/savarez-Release
           retention-days: 7
 
   release:
@@ -308,7 +307,7 @@ jobs:
             Root: **${{ inputs.root }}**
             KPM: **${{ inputs.kpm }}**
             Hardened: **${{ inputs.hardened }}**
-            
+
             ### Performance Mods
             | Feature | Status |
             |---------|--------|
@@ -319,7 +318,7 @@ jobs:
             | KGSL GPU Bypass | **${{ inputs.kgsl_exploit }}** |
             | Data Exploits | **${{ inputs.data_exploit }}** |
             | Debug Mode | **${{ inputs.debug }}** |
-            
+
             Commit: ${{ github.sha }}
             Ref: ${{ github.ref }}
           files: release_assets/*
